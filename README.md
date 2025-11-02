@@ -137,7 +137,7 @@ curl -H "Authorization: Bearer YOUR_API_KEY" http://localhost:5550/api/vms
 
 Complete CLI commands, API reference, and advanced usage:
 
-➡️ **[DOCS.md](DOCS.md)** - Complete CLI & API Documentation
+➡️ **[docs.md](docs.md)** - Complete CLI & API Documentation
 
 ---
 
