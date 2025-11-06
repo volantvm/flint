@@ -437,12 +437,13 @@ Examples:
 		var client libvirtclient.ClientInterface
 		var clientErr error
 
-		// Try to create the libvirt client
-		client, clientErr = libvirtclient.NewClient(cfg.Libvirt.URI, cfg.Libvirt.ISOPool, cfg.Libvirt.TemplatePool)
+		// Try to create the libvirt client with effective URI (handles SSH if enabled)
+		effectiveURI := cfg.GetEffectiveLibvirtURI()
+		client, clientErr = libvirtclient.NewClient(effectiveURI, cfg.Libvirt.ISOPool, cfg.Libvirt.TemplatePool)
 		if clientErr != nil {
 			logger.Warn("Failed to connect to libvirt - server will start in limited mode", map[string]interface{}{
 				"error": clientErr.Error(),
-				"uri":   cfg.Libvirt.URI,
+				"uri":   effectiveURI,
 			})
 			// Create a dummy client that returns errors for all operations
 			client = &dummyClient{}

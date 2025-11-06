@@ -84,8 +84,15 @@ type Client struct {
 	templatePoolName string
 }
 
-// NewClient opens a libvirt connection (e.g. "qemu:///system")
+// NewClient opens a libvirt connection (e.g. "qemu:///system" or "qemu+ssh://user@host/system")
 func NewClient(uri string, isoPoolName, templatePoolName string) (*Client, error) {
+	// If this is an SSH connection, ensure SSH environment is properly configured
+	if strings.Contains(uri, "qemu+ssh://") {
+		// Note: SSH key configuration should be handled by the system's SSH agent or
+		// by having the key in the default location (~/.ssh/id_rsa or ~/.ssh/id_ed25519)
+		// libvirt-go will use the standard SSH authentication mechanisms
+	}
+
 	conn, err := libvirt.NewConnect(uri) // typical API
 	if err != nil {
 		return nil, fmt.Errorf("libvirt connect: %w", err)

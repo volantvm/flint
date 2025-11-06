@@ -208,6 +208,64 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
   }
 }
 
+// Connection types
+export interface ConnectionStatus {
+  connected: boolean
+  uri: string
+  effective_uri: string
+  ssh_enabled: boolean
+  ssh_host?: string
+  ssh_username?: string
+  ssh_port?: number
+  error_message?: string
+}
+
+export interface ConnectionTestRequest {
+  uri: string
+  ssh_enabled: boolean
+  ssh_username: string
+  ssh_host: string
+  ssh_port: number
+  ssh_key_path: string
+}
+
+export interface ConnectionTestResponse {
+  success: boolean
+  message: string
+  effective_uri?: string
+}
+
+export interface ConnectionConfigRequest {
+  uri: string
+  ssh_enabled: boolean
+  ssh_username: string
+  ssh_host: string
+  ssh_port: number
+  ssh_key_path: string
+}
+
+export interface SSHKey {
+  path: string
+  name: string
+  secure: string
+}
+
+// Connection API functions
+export const connectionAPI = {
+  getStatus: (): Promise<ConnectionStatus> => apiRequest("/connection/status"),
+  testConnection: (config: ConnectionTestRequest): Promise<ConnectionTestResponse> =>
+    apiRequest("/connection/test", {
+      method: "POST",
+      body: JSON.stringify(config),
+    }),
+  updateConfig: (config: ConnectionConfigRequest): Promise<{ success: boolean; message: string; effective_uri: string }> =>
+    apiRequest("/connection/config", {
+      method: "PUT",
+      body: JSON.stringify(config),
+    }),
+  detectSSHKeys: (): Promise<{ keys: SSHKey[] }> => apiRequest("/ssh-key/detect"),
+}
+
 // Host API functions
 export const hostAPI = {
   getStatus: (): Promise<HostStatus> => apiRequest("/host/status"),

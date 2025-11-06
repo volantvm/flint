@@ -34,10 +34,23 @@ type SecurityConfig struct {
 
 // LibvirtConfig represents libvirt-related configuration
 type LibvirtConfig struct {
-	URI           string `json:"uri"`
-	ISOPool       string `json:"iso_pool"`
-	TemplatePool  string `json:"template_pool"`
-	ImagePoolPath string `json:"image_pool_path"`
+	URI           string              `json:"uri"`
+	ISOPool       string              `json:"iso_pool"`
+	TemplatePool  string              `json:"template_pool"`
+	ImagePoolPath string              `json:"image_pool_path"`
+	SSH           LibvirtSSHConfig    `json:"ssh"`
+}
+
+// LibvirtSSHConfig represents SSH-specific configuration for remote libvirt connections
+type LibvirtSSHConfig struct {
+	Enabled        bool   `json:"enabled"`
+	Username       string `json:"username"`
+	Host           string `json:"host"`
+	Port           int    `json:"port"`
+	KeyPath        string `json:"key_path"`
+	KnownHostsPath string `json:"known_hosts_path"`
+	// Password is intentionally not stored in config for security
+	// Users should use SSH key authentication
 }
 
 // LoggingConfig represents logging configuration
@@ -64,6 +77,14 @@ func DefaultConfig() *Config {
 			ISOPool:       "isos",
 			TemplatePool:  "templates",
 			ImagePoolPath: "/var/lib/flint/images",
+			SSH: LibvirtSSHConfig{
+				Enabled:        false,
+				Username:       "",
+				Host:           "",
+				Port:           22,
+				KeyPath:        filepath.Join(os.Getenv("HOME"), ".ssh", "id_rsa"),
+				KnownHostsPath: filepath.Join(os.Getenv("HOME"), ".ssh", "known_hosts"),
+			},
 		},
 		Logging: LoggingConfig{
 			Level:  "INFO",
@@ -156,6 +177,28 @@ func loadFromEnv(config *Config) {
 		config.Libvirt.ImagePoolPath = imagePoolPath
 	}
 
+	// SSH configuration
+	if sshEnabled := os.Getenv("FLINT_LIBVIRT_SSH_ENABLED"); sshEnabled != "" {
+		config.Libvirt.SSH.Enabled = sshEnabled == "true" || sshEnabled == "1"
+	}
+	if sshUsername := os.Getenv("FLINT_LIBVIRT_SSH_USERNAME"); sshUsername != "" {
+		config.Libvirt.SSH.Username = sshUsername
+	}
+	if sshHost := os.Getenv("FLINT_LIBVIRT_SSH_HOST"); sshHost != "" {
+		config.Libvirt.SSH.Host = sshHost
+	}
+	if sshPort := os.Getenv("FLINT_LIBVIRT_SSH_PORT"); sshPort != "" {
+		if p, err := strconv.Atoi(sshPort); err == nil {
+			config.Libvirt.SSH.Port = p
+		}
+	}
+	if sshKeyPath := os.Getenv("FLINT_LIBVIRT_SSH_KEY_PATH"); sshKeyPath != "" {
+		config.Libvirt.SSH.KeyPath = sshKeyPath
+	}
+	if sshKnownHostsPath := os.Getenv("FLINT_LIBVIRT_SSH_KNOWN_HOSTS_PATH"); sshKnownHostsPath != "" {
+		config.Libvirt.SSH.KnownHostsPath = sshKnownHostsPath
+	}
+
 	// Logging configuration
 	if level := os.Getenv("FLINT_LOG_LEVEL"); level != "" {
 		config.Logging.Level = strings.ToUpper(level)
@@ -212,6 +255,22 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("image pool path cannot be empty")
 	}
 
+	// Validate SSH config if enabled
+	if c.Libvirt.SSH.Enabled {
+		if c.Libvirt.SSH.Username == "" {
+			return fmt.Errorf("SSH username is required when SSH is enabled")
+		}
+		if c.Libvirt.SSH.Host == "" {
+			return fmt.Errorf("SSH host is required when SSH is enabled")
+		}
+		if c.Libvirt.SSH.Port < 1 || c.Libvirt.SSH.Port > 65535 {
+			return fmt.Errorf("invalid SSH port: %d", c.Libvirt.SSH.Port)
+		}
+		if c.Libvirt.SSH.KeyPath == "" {
+			return fmt.Errorf("SSH key path is required when SSH is enabled")
+		}
+	}
+
 	// Validate logging config
 	validLevels := map[string]bool{
 		"DEBUG": true,
@@ -233,4 +292,30 @@ func (c *Config) Validate() error {
 	}
 
 	return nil
+}
+
+// GetEffectiveLibvirtURI returns the effective libvirt URI based on SSH configuration
+// If SSH is enabled, it constructs a qemu+ssh:// URI, otherwise returns the configured URI
+func (c *Config) GetEffectiveLibvirtURI() string {
+	if c.Libvirt.SSH.Enabled {
+		// Build SSH URI: qemu+ssh://user@host:port/system
+		uri := fmt.Sprintf("qemu+ssh://%s@%s", c.Libvirt.SSH.Username, c.Libvirt.SSH.Host)
+
+		// Only add port if it's not the default SSH port (22)
+		if c.Libvirt.SSH.Port != 22 {
+			uri = fmt.Sprintf("%s:%d", uri, c.Libvirt.SSH.Port)
+		}
+
+		// Determine the path based on the original URI
+		// Default to /system if not specified
+		path := "/system"
+		if strings.Contains(c.Libvirt.URI, "/session") {
+			path = "/session"
+		}
+
+		uri = uri + path
+		return uri
+	}
+
+	return c.Libvirt.URI
 }

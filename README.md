@@ -174,6 +174,7 @@ curl -H "Authorization: Bearer YOUR_API_KEY" http://localhost:5550/api/vms
 -   📦 **Frictionless Provisioning** — Native Cloud-Init support and a simple, snapshot-based template system.
 -   🔐 **Secure by Default** — Multi-layered authentication with passphrase protection.
 -   💪 **Non-Intrusive** — Flint is a tool that serves you. It's not a platform that locks you in.
+-   🌐 **Remote Management** — Connect to remote KVM/libvirt servers via SSH from a single Flint instance.
 
 ---
 
@@ -221,6 +222,77 @@ flint storage volume list default # List storage volumes
 # Get your API key (requires authentication)
 curl -H "Authorization: Bearer YOUR_API_KEY" http://localhost:5550/api/vms
 ```
+
+---
+
+### 🌐 Remote Server Management via SSH
+
+Flint can connect to remote KVM/libvirt servers via SSH, allowing you to manage distributed virtualization infrastructure from a single instance.
+
+**Setup Requirements:**
+1. SSH key-based authentication configured between Flint host and remote server
+2. Remote server must have libvirt >= 6.10.0 installed
+3. User on remote server must have permissions to access libvirt
+
+**Configuration Methods:**
+
+**Option 1: Web UI (Recommended)**
+1. Navigate to Settings in the Flint web interface
+2. Enable "SSH Connection" toggle
+3. Fill in SSH connection details:
+   - Username (e.g., `root` or user with libvirt permissions)
+   - Host (IP address or hostname)
+   - Port (default: 22)
+   - SSH Key Path (auto-detected from ~/.ssh/)
+4. Click "Test Connection" to verify
+5. Click "Save Configuration" and restart Flint
+
+**Option 2: Configuration File**
+Edit `~/.flint/config.json`:
+```json
+{
+  "libvirt": {
+    "uri": "qemu:///system",
+    "ssh": {
+      "enabled": true,
+      "username": "root",
+      "host": "192.168.1.100",
+      "port": 22,
+      "key_path": "~/.ssh/id_rsa",
+      "known_hosts_path": "~/.ssh/known_hosts"
+    }
+  }
+}
+```
+
+**Option 3: Environment Variables**
+```bash
+export FLINT_LIBVIRT_SSH_ENABLED=true
+export FLINT_LIBVIRT_SSH_USERNAME=root
+export FLINT_LIBVIRT_SSH_HOST=192.168.1.100
+export FLINT_LIBVIRT_SSH_PORT=22
+export FLINT_LIBVIRT_SSH_KEY_PATH=~/.ssh/id_rsa
+flint serve
+```
+
+**SSH Key Setup:**
+```bash
+# On Flint host, generate SSH key if needed
+ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa
+
+# Copy public key to remote server
+ssh-copy-id root@192.168.1.100
+
+# Verify connection
+ssh root@192.168.1.100 virsh list --all
+```
+
+**Security Notes:**
+- SSH keys must have secure permissions (600 or 400)
+- Password authentication is not supported (key-based only)
+- Flint uses the standard libvirt SSH transport (qemu+ssh://)
+- All libvirt operations are encrypted via SSH tunnel
+
 ---
 
 ### 📖 Full Documentation

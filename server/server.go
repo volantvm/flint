@@ -467,6 +467,12 @@ func (s *Server) setupRoutes() {
 		r.Use(s.authMiddleware)
 		r.Get("/api-key", s.handleGetAPIKey()) // Now requires authentication!
 		r.Get("/ssh-key/detect", s.handleDetectSSHKey())
+
+		// Connection management endpoints
+		r.Get("/connection/status", s.handleGetConnectionStatus())
+		r.Post("/connection/test", s.handleTestConnection())
+		r.Put("/connection/config", s.handleUpdateConnectionConfig())
+
 		r.Get("/vms", s.handleGetVMs())
 		r.Post("/vms", s.handleCreateVM())
 		r.Post("/vms/from-template", s.handleCreateVMFromTemplate())

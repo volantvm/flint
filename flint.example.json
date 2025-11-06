@@ -13,7 +13,15 @@
     "uri": "qemu:///system",
     "iso_pool": "isos",
     "template_pool": "templates",
-    "image_pool_path": "/var/lib/flint/images"
+    "image_pool_path": "/var/lib/flint/images",
+    "ssh": {
+      "enabled": false,
+      "username": "",
+      "host": "",
+      "port": 22,
+      "key_path": "~/.ssh/id_rsa",
+      "known_hosts_path": "~/.ssh/known_hosts"
+    }
   },
   "logging": {
     "level": "INFO",
